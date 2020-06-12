@@ -211,9 +211,6 @@ class GUROBI(SCS):
             variables += new_vars
             soc_start += constr_len
 
-        gur_constrs = eq_constrs + ineq_constrs + new_leq_constrs + soc_constrs
-        model.update()
-
         # Set parameters
         # TODO user option to not compute duals.
         model.setParam("QCPDual", True)
@@ -234,15 +231,9 @@ class GUROBI(SCS):
             # Not sure why we need to negate the following,
             # but need to in order to be consistent with other solvers.
             if not (data[s.BOOL_IDX] or data[s.INT_IDX]):
-                vals = []
-                for lc in gur_constrs:
-                    if lc is not None:
-                        if isinstance(lc, gurobipy.QConstr):
-                            vals.append(lc.QCPi)
-                        else:
-                            vals.append(lc.Pi)
-                    else:
-                        vals.append(0)
+                vals = model.getAttr('Pi',
+                        eq_constrs + ineq_constrs + new_leq_constr)
+                vals += model.getAttr('QCPi', soc_constrs)
                 solution["y"] = -np.array(vals)
                 solution[s.EQ_DUAL] = solution["y"][0:dims[s.EQ_DIM]]
                 solution[s.INEQ_DUAL] = solution["y"][dims[s.EQ_DIM]:]
